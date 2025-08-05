@@ -25,6 +25,7 @@ The SPX Options Data Pipeline Tool leverages Effect-TS's powerful streaming and 
 - Built-in data integrity validation at every stage, ensuring only clean, consistent data reaches storage
 - Intelligent scheduling system that seamlessly handles both historical backfills and incremental updates without duplicates
 - CLI commands that provide fine-grained control over data acquisition, from specific date ranges to real-time updates
+- Connects to locally running ThetaData Terminal for reliable, high-performance data access
 
 **Key Differentiators:**
 - **Effect-TS Foundation**: Unlike traditional Node.js scripts, our Effect-based architecture provides automatic retry logic, comprehensive error tracking, and resource-safe operations
@@ -131,6 +132,7 @@ Future opportunities will be evaluated based on user feedback and actual usage p
 - **Performance Requirements:** Process 50K+ records/minute, maintain <75% memory utilization, support concurrent API calls with rate limiting
 
 ### Technology Preferences
+- **Runtime:** Bun (for better performance, native SQLite support, faster startup)
 - **Language:** TypeScript with strict mode enabled
 - **Framework:** Effect-TS for all core functionality (errors, streams, CLI, scheduling)
 - **Data Processing:** Effect Streams for memory-efficient processing
@@ -142,8 +144,8 @@ Future opportunities will be evaluated based on user feedback and actual usage p
 ### Architecture Considerations
 - **Repository Structure:** Monorepo with clear separation between CLI, core pipeline, and API client modules
 - **Service Architecture:** Single binary deployment with all dependencies bundled
-- **Integration Requirements:** thetadata REST API with API key authentication
-- **Security/Compliance:** API keys stored in environment variables or secure config files, never in code
+- **Integration Requirements:** ThetaData Terminal running locally at http://127.0.0.1:25510
+- **Security/Compliance:** Terminal handles authentication; no API keys in application code
 
 ## Constraints & Assumptions
 
@@ -151,22 +153,22 @@ Future opportunities will be evaluated based on user feedback and actual usage p
 - **Budget:** Development time limited to personal project scope (evenings/weekends)
 - **Timeline:** MVP target of 2-3 months for core functionality
 - **Resources:** Single developer with Effect-TS expertise
-- **Technical:** thetadata API rate limits (must respect quotas and implement proper backoff)
+- **Technical:** ThetaData Terminal concurrency limits (2-4 concurrent requests for Standard tier)
 - **Storage:** Local development limited to available SSD space (~2TB)
 
 ### Key Assumptions
-- thetadata API will remain stable and maintain current data quality standards
+- ThetaData Terminal API will remain stable and maintain current data quality standards
 - Effect-TS ecosystem provides all necessary primitives without requiring external libraries
 - 1-minute tick data granularity is sufficient for most options backtesting strategies
-- Users have valid thetadata API subscriptions with appropriate data access rights
+- Users have ThetaData Terminal installed and running locally with valid subscription
 - Parquet format will provide sufficient compression to make 50-100GB datasets manageable
 - M4 MacBook Pro performance characteristics will translate well to containerized Linux environments
-- Network interruptions are temporary and can be recovered via retry logic
+- Local Terminal connection is reliable with minimal interruptions
 
 ## Risks & Open Questions
 
 ### Key Risks
-- **API Dependency:** Complete reliance on thetadata API availability and data quality - any API changes could break the pipeline
+- **Terminal Dependency:** Complete reliance on ThetaData Terminal being running locally - terminal crashes or updates could break the pipeline
 - **Data Volume:** Underestimating storage/processing requirements for full options chains with 1-minute granularity
 - **Effect-TS Complexity:** Learning curve for Effect patterns might slow development, especially for advanced streaming scenarios
 - **Memory Pressure:** Despite streaming design, certain operations (sorting, grouping) might still cause memory spikes
@@ -183,8 +185,8 @@ Future opportunities will be evaluated based on user feedback and actual usage p
 ### Areas Needing Further Research
 - Benchmark different Node.js Parquet libraries for performance and stability
 - Test Effect Streams performance with realistic data volumes
-- Determine optimal HTTP_CONCURRENCY value for Standard tier (likely 2-4)
-- Research thetadata API error codes and recovery strategies
+- Determine optimal concurrency value for Standard tier (likely 2-4 parallel requests)
+- Research ThetaData Terminal error responses and recovery strategies
 - Evaluate compression algorithms for best size/speed tradeoff with 50-100GB datasets
 
 ## Appendices
@@ -196,15 +198,15 @@ Since this is an initial project brief without prior research artifacts, we'll n
 
 ### B. References
 - [Effect-TS Documentation](https://effect.website/)
-- [thetadata API Documentation](https://thetadata.net/docs)
+- [ThetaData Terminal HTTP Documentation](https://http-docs.thetadata.us/docs/http/introduction)
 - [Apache Parquet Format Specification](https://parquet.apache.org/)
 
 ## Next Steps
 
 ### Immediate Actions
-1. Set up thetadata API access and verify Standard tier capabilities
-2. Create initial Effect-TS project structure with CLI scaffolding
-3. Implement basic API client with configurable concurrency (2-4 threads)
+1. Install and configure ThetaData Terminal locally
+2. Create initial Effect-TS project structure with Bun and CLI scaffolding
+3. Implement basic Terminal client with configurable concurrency (2-4 parallel requests)
 4. Build proof-of-concept for streaming a single day of SPX options data
 5. Test Parquet write performance with sample data
 6. Validate memory usage stays under 75% with full options chain processing

@@ -12,7 +12,7 @@
 
 ### Background Context
 
-The SPX Options Data Pipeline Tool addresses critical challenges faced by quantitative options traders who currently lose 20-30% of their research time to data management tasks. Built entirely on Effect-TS, this CLI tool provides a streaming pipeline that downloads both historical and current SPX options data from thetadata API, storing it as integrity-validated Parquet files. The tool's streaming architecture eliminates memory constraints that plague traditional batch processing approaches, while built-in scheduling capabilities ensure datasets remain current without manual intervention.
+The SPX Options Data Pipeline Tool addresses critical challenges faced by quantitative options traders who currently lose 20-30% of their research time to data management tasks. Built entirely on Effect-TS with Bun runtime, this CLI tool provides a streaming pipeline that downloads both historical and current SPX options data from locally running ThetaData Terminal, storing it as integrity-validated Parquet files. The tool's streaming architecture eliminates memory constraints that plague traditional batch processing approaches, while built-in scheduling capabilities ensure datasets remain current without manual intervention.
 
 ### Change Log
 
@@ -35,7 +35,7 @@ The SPX Options Data Pipeline Tool addresses critical challenges faced by quanti
 • **FR9:** Automatically retry failed requests with exponential backoff
 • **FR10:** Resume interrupted downloads within 5 minutes of failure
 • **FR11:** Support downloading 1-minute tick granularity data for SPX options
-• **FR12:** Respect thetadata API rate limits and quotas with proper request management
+• **FR12:** Respect ThetaData Terminal concurrency limits with proper request management
 
 ### Non Functional
 
@@ -44,8 +44,8 @@ The SPX Options Data Pipeline Tool addresses critical challenges faced by quanti
 • **NFR3:** Complete 95% of scheduled runs without manual intervention
 • **NFR4:** Process and store 1 year of SPX data (50-100GB) without memory overflow
 • **NFR5:** Achieve >5:1 compression ratio using Parquet format vs CSV
-• **NFR6:** Support operation on macOS (M4 MacBook Pro) with 24GB minimum RAM
-• **NFR7:** Store API keys securely in environment variables, never in code
+• **NFR6:** Support operation on macOS (M4 MacBook Pro) with 24GB minimum RAM using Bun runtime
+• **NFR7:** Rely on ThetaData Terminal for authentication, no API keys in application
 • **NFR8:** Provide clear error messages and logging for debugging failed operations
 • **NFR9:** Bundle as single binary with all dependencies for easy deployment
 • **NFR10:** Ensure data queries via DuckDB/pandas run 10x faster than CSV equivalents
@@ -107,16 +107,18 @@ Single repository with organized source structure under `/src` directory, contai
 - Create Test layers for all Effect services
 - Use Effect TestClock and TestRandom for deterministic testing
 - Aim for high test coverage with focus on edge cases and error scenarios
+- Use Bun test runner for faster test execution
 
 ### Additional Technical Assumptions and Requests
 
+• **Runtime**: Bun for better performance, native SQLite support, and faster startup
 • **Language & Framework**: TypeScript with strict mode, Effect-TS for all core functionality
 • **Streaming Architecture**: Effect Streams for memory-efficient processing of 50K+ records/minute
 • **Storage Format**: Apache Parquet via parquetjs with schema validation
 • **CLI Framework**: Effect CLI for command parsing with proper error boundaries
 • **HTTP Client**: Effect HTTP with built-in retry logic and exponential backoff
 • **Configuration**: Effect Config module for environment variables and settings
-• **Concurrency Control**: Configurable 2-4 threads respecting thetadata API Standard tier limits
+• **Concurrency Control**: Configurable 2-4 parallel requests respecting ThetaData Terminal Standard tier limits
 • **Error Handling**: Tagged errors (Data.TaggedError) for type-safe error handling
 • **Resource Management**: Layer.scoped for proper cleanup of file handles and connections
 • **Deployment**: Single binary bundle with all dependencies included
@@ -144,27 +146,27 @@ I want to establish the Effect-TS project structure with proper service layers,
 so that I have a solid foundation for building the data pipeline.
 
 **Acceptance Criteria:**
-1. Initialize TypeScript project with strict mode and Effect-TS dependencies
+1. Initialize TypeScript project with strict mode, Bun runtime, and Effect-TS dependencies
 2. Create project structure with clear separation: /src/services, /src/cli, /src/models, /src/layers
 3. Implement base service layer architecture with Context.Tag pattern
-4. Set up Effect test framework with example service and test layer
+4. Set up Effect test framework with example service and test layer using Bun test runner
 5. Configure Bun build system to produce single executable binary
-6. Create basic Effect Config service for environment variables (API key)
-7. Implement "health check" CLI command that verifies Effect runtime
+6. Create basic Effect Config service for environment variables
+7. Implement "health check" CLI command that verifies Effect runtime and Terminal connection
 
-### Story 1.2 ThetaData API Client Service
+### Story 1.2 ThetaData Terminal Client Service
 
 As a system,
-I want a robust API client service that connects to the local ThetaTerminal,
+I want a robust API client service that connects to the local ThetaData Terminal,
 so that I can reliably retrieve SPX options data.
 
 **Acceptance Criteria:**
 1. Implement ThetaDataApiClient service using Effect HTTP client pointing to http://127.0.0.1:25510
-2. Add health check that verifies `/v2/system/mdds/status` endpoint is accessible
-3. Implement configurable rate limiting and concurrent request limit
+2. Add health check that verifies Terminal is running and `/v2/system/mdds/status` endpoint is accessible
+3. Implement configurable concurrency limiting (2-4 parallel requests)
 4. Add exponential backoff retry logic for transient failures
 5. Create comprehensive test layer with mocked responses
-6. Handle ThetaData error responses appropriately
+6. Handle ThetaData Terminal error responses appropriately
 7. Log all API requests/responses for debugging
 
 ### Story 1.3 Expiration-Based Parallel Processing Service
@@ -206,11 +208,11 @@ so that I can start acquiring data immediately.
 **Acceptance Criteria:**
 1. Implement `download --date YYYY-MM-DD` command using Effect CLI
 2. Display progress indicator showing expirations processed
-3. Save outputs to trade date directory with expiration-based files (e.g., `./data/20230101/spxw_20230106.csv`)
-4. Each expiration gets its own CSV file
+3. Create trade date directory structure: `./data/YYYYMMDD/`
+4. Save each expiration to its own file: `./data/YYYYMMDD/spxw_exp_YYYYMMDD.csv`
 5. Show summary statistics (records downloaded, time taken, total file size)
 6. Support --dry-run flag to preview operation
-7. Provide clear error messages if ThetaTerminal is not running
+7. Provide clear error messages if ThetaData Terminal is not running
 
 ### Story 1.6 Integration Tests and Documentation
 
@@ -221,7 +223,7 @@ so that the system is reliable and easy to onboard.
 **Acceptance Criteria:**
 1. Create end-to-end test that downloads real data for a sample date
 2. Add integration tests for all service layer interactions
-3. Write README with setup instructions and API key configuration
+3. Write README with setup instructions and ThetaData Terminal configuration
 4. Document basic CLI usage with examples
 5. Add performance test comparing parallel vs serial processing
 6. Include troubleshooting guide for common issues
