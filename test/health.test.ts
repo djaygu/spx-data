@@ -9,8 +9,7 @@ const healthCheck = Effect.gen(function* (_) {
   const isConnected = yield* _(client.checkConnection())
 
   if (isConnected) {
-    const status = yield* _(client.get('/v2/system/mdds/status'))
-    return { success: true, status }
+    return { success: true }
   } else {
     return { success: false, error: 'Connection failed' }
   }
@@ -21,10 +20,5 @@ describe('Health Check', () => {
     const result = await Effect.runPromise(healthCheck.pipe(Effect.provide(TestLive)))
 
     expect(result.success).toBe(true)
-    expect(result.status).toEqual({
-      mdds: 'ready',
-      streaming: true,
-      uptime: 123456,
-    })
   })
 })

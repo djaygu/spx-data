@@ -12,13 +12,10 @@ export const health = Command.make('health', {}, () =>
     const isConnected = yield* _(client.checkConnection())
 
     if (isConnected) {
-      // Get system status
-      const status = yield* _(client.get('/v2/system/mdds/status'))
-
       yield* _(Effect.log('✓ ThetaData Terminal connection: OK'))
       yield* _(Effect.log(`✓ Terminal URL: http://127.0.0.1:25510`))
       yield* _(Effect.log('✓ Effect runtime verification: OK'))
-      yield* _(Effect.log(`✓ System status: ${JSON.stringify(status)}`))
+      yield* _(Effect.log('✓ Status: CONNECTED'))
 
       return Effect.succeed(undefined)
     } else {
