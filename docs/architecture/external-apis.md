@@ -3,16 +3,15 @@
 ## ThetaData Terminal API
 - **Purpose:** Primary data source for SPX options data including historical quotes, greeks, and open interest with 1-minute granularity
 - **Documentation:** https://http-docs.thetadata.us/docs/http/introduction
-- **Base URL(s):** http://127.0.0.1:25510/v2
+- **Base URL(s):** http://127.0.0.1:25510
 - **Authentication:** No authentication required (local terminal handles auth)
 - **Rate Limits:** Standard tier: 20 requests/second, 40 concurrent connections
 
 **Key Endpoints Used:**
-- `GET /v2/list/strikes` - Get available strikes for a specific root and expiration
+- Base URL + Endpoint
 - `GET /v2/list/expirations` - Get available expiration dates for SPX
-- `GET /v2/bulk_hist/option/greeks` - Bulk historical first-order greeks (Delta, Gamma, Theta, Vega, Rho)
-- `GET /v2/bulk_hist/option/quote` - Bulk historical quotes with 1-minute granularity
-- `GET /v2/bulk_hist/option/trade` - Bulk historical trades with timestamps
+- `GET /v2/bulk_hist/option/greeks` - Bulk historical first-order quotes with greeks (Delta, Gamma, Theta, Vega, Rho) with 1-minute granularity
+- `GET /v2/system/mdds/status` - health check returns 'CONNECTED'
 
 **Integration Notes:** 
 - Terminal must be running locally before CLI can fetch data

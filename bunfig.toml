@@ -1,0 +1,4 @@
+# Bun configuration
+
+[run]
+bun = true
