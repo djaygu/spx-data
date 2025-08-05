@@ -27,7 +27,8 @@ export const ThetaDataApiClientLive = Layer.effect(
           const response = await fetch(url.toString())
 
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
+            const errorText = await response.text().catch(() => 'No error details')
+            throw new Error(`HTTP ${response.status}: ${response.statusText}. ${errorText}`.trim())
           }
 
           if (responseType === 'text') {
@@ -36,12 +37,19 @@ export const ThetaDataApiClientLive = Layer.effect(
 
           return (await response.json()) as T
         },
-        catch: (error) =>
-          new ApiConnectionError({
-            message: error instanceof Error ? error.message : 'Unknown error',
+        catch: (error) => {
+          // Provide more context in error messages
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Unknown error occurred while contacting ThetaData Terminal'
+
+          return new ApiConnectionError({
+            message,
             statusCode: error instanceof Response ? error.status : undefined,
-            url: endpoint,
-          }),
+            url: `${baseUrl}${endpoint}`,
+          })
+        },
       })
 
     return {
@@ -65,6 +73,9 @@ export const ThetaDataApiClientLive = Layer.effect(
       checkConnection: () =>
         makeRequest<string>('/v2/system/mdds/status', undefined, 'text').pipe(
           Effect.map((status) => status.trim() === 'CONNECTED'),
+          Effect.tapError((error) =>
+            Effect.logWarning(`Terminal health check failed: ${error.message}`),
+          ),
           Effect.catchAll(() => Effect.succeed(false)),
         ),
     }

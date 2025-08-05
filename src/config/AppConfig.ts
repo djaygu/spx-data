@@ -24,7 +24,7 @@ export const AppConfig = Config.all({
     ),
   }),
   download: Config.all({
-    maxDTE: Config.number('CONFIG_DOWNLOAD_MAX_DTE').pipe(Config.withDefault(60)),
+    maxDTE: Config.number('CONFIG_DOWNLOAD_MAX_DTE').pipe(Config.withDefault(30)),
   }),
   storage: Config.all({
     dataDirectory: Config.string('CONFIG_STORAGE_DATA_DIRECTORY').pipe(
