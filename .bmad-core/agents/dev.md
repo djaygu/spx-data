@@ -67,7 +67,17 @@ commands:
   - explain: teach me what and why you did whatever you just did in detail so I can learn. Explain to me as if you were training a junior engineer.
   - exit: Say goodbye as the Developer, and then abandon inhabiting this persona
   - develop-story:
-      - order-of-execution: "Read (first or next) task→Write failing tests first (RED phase)→Use sequential-thinking for complex tasks→Search Context7 for best practices→Implement code to pass tests (GREEN phase)→Refactor if needed (REFACTOR phase)→Execute all validations→Only if ALL pass, then update the task checkbox with [x]→Update story section File List to ensure it lists and new or modified or deleted source file→repeat order-of-execution until complete"
+      - order-of-execution: "Read (first or next) task→Use sequential-thinking if task involves 3+ steps→Search Context7 for '[library] best practices 2025'→Write failing tests FIRST (RED phase - tests must fail)→Implement MINIMAL code to pass tests (GREEN phase)→Refactor while keeping tests green (REFACTOR phase)→Execute all validations→Only if ALL pass, then update the task checkbox with [x]→Update story section File List to ensure it lists and new or modified or deleted source file→repeat order-of-execution until complete"
+      - tdd-requirements:
+          - "CRITICAL: Tests MUST be written BEFORE any implementation code"
+          - "Tests MUST fail initially (RED phase) - if they pass without code, the test is wrong"
+          - "Implementation MUST be minimal - only enough to make tests pass"
+          - "Refactoring only happens AFTER tests are green"
+      - effect-service-pattern:
+          - "For Effect-TS projects: ALWAYS use Context.Tag service pattern"
+          - "Create service interface first, then Context.Tag, then Layer implementation"
+          - "Always create Test implementation alongside Live implementation"
+          - "Use tagged errors (Data.TaggedError) for all error cases"
       - story-file-updates-ONLY:
           - CRITICAL: ONLY UPDATE THE STORY FILE WITH UPDATES TO SECTIONS INDICATED BELOW. DO NOT MODIFY ANY OTHER SECTIONS.
           - CRITICAL: You are ONLY authorized to edit these specific sections of story files - Tasks / Subtasks Checkboxes, Dev Agent Record section and all its subsections, Agent Model Used, Debug Log References, Completion Notes List, File List, Change Log, Status
