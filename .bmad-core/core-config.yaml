@@ -16,6 +16,8 @@ devLoadAlwaysFiles:
   - docs/architecture/tech-stack.md
   - docs/architecture/source-tree.md
   - .bmad-core/data/technical-preferences.md
+  - .bmad-core/data/effect-ts-patterns.md
+  - .bmad-core/data/project-detection-rules.md
 devDebugLog: .ai/debug-log.md
 devStoryLocation: docs/stories
 slashPrefix: BMad

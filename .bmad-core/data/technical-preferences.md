@@ -32,6 +32,39 @@
   - Reduced cognitive load
   - Better error prevention
 
+## Effect-TS Specific Patterns
+
+### Service Layer Architecture
+- **MANDATORY for Effect-TS projects**: Use service layer pattern with Context.Tag
+- **Dependency Injection**: Use Layer composition for all dependencies
+- **Testing**: Create Test layers for all services to enable easy mocking
+- **Error Handling**: Use tagged errors (Data.TaggedError) for type-safe error handling
+
+### Effect-TS Best Practices
+1. **Service Declaration Pattern**:
+   - Define interface first
+   - Create Context.Tag for service identification
+   - Implement with Layer.effect or Layer.succeed
+   - Use "Live" suffix for production, "Test" for testing
+
+2. **Layer Composition**:
+   - Vertical layers for related services
+   - Use Layer.provide for dependency injection
+   - Layer.scoped for resources needing cleanup
+   - Config module for environment settings
+
+3. **Testing with Effect**:
+   - Always create Test implementations of services
+   - Use Layer.mock for partial mocks
+   - Leverage TestClock and TestRandom for deterministic tests
+   - Test error scenarios with specific error types
+
+4. **Effect.gen Usage**:
+   - Use for sequential operations
+   - Avoid deeply nested generators
+   - Let TypeScript infer types
+   - Use yield* for Effect unwrapping
+
 ## Implementation Guidelines
 
 ### Before Writing Any Code

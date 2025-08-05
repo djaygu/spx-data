@@ -85,4 +85,6 @@ dependencies:
     - tdd-development-checklist.md
   data:
     - technical-preferences.md
+    - effect-ts-patterns.md
+    - project-detection-rules.md
 ```
