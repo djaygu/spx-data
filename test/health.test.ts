@@ -6,12 +6,12 @@ import { ThetaDataApiClient } from '@/services/ThetaDataApiClient'
 // Extract health check logic for testing
 const healthCheck = Effect.gen(function* (_) {
   const client = yield* _(ThetaDataApiClient)
-  const isConnected = yield* _(client.checkConnection())
+  const status = yield* _(client.healthCheck())
 
-  if (isConnected) {
+  if (status.isConnected) {
     return { success: true }
   } else {
-    return { success: false, error: 'Connection failed' }
+    return { success: false, error: `Connection failed: ${status.status}` }
   }
 })
 

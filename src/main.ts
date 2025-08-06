@@ -16,9 +16,9 @@ const healthCheck = Effect.gen(function* (_) {
   const client = yield* _(ThetaDataApiClient)
 
   // Check connection
-  const isConnected = yield* _(client.checkConnection())
+  const healthStatus = yield* _(client.healthCheck())
 
-  if (isConnected) {
+  if (healthStatus.isConnected) {
     yield* _(Effect.log('✓ ThetaData Terminal connection: OK'))
     yield* _(Effect.log(`✓ Terminal URL: http://127.0.0.1:25510`))
     yield* _(Effect.log('✓ Effect runtime verification: OK'))

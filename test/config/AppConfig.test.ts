@@ -13,9 +13,13 @@ describe('AppConfig', () => {
     expect(config).toEqual({
       thetaData: {
         baseUrl: 'http://127.0.0.1:25510',
+        maxConcurrentRequests: 2,
+        maxRetries: 3,
+        retryBaseDelayMs: 1000,
+        requestTimeoutMs: 30000,
       },
       download: {
-        maxDTE: 60,
+        maxDTE: 30,
       },
       storage: {
         dataDirectory: './data',
@@ -43,6 +47,10 @@ describe('AppConfig', () => {
     expect(config).toEqual({
       thetaData: {
         baseUrl: 'http://localhost:8080',
+        maxConcurrentRequests: 2,
+        maxRetries: 3,
+        retryBaseDelayMs: 1000,
+        requestTimeoutMs: 30000,
       },
       download: {
         maxDTE: 90,

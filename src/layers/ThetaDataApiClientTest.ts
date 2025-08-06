@@ -1,127 +1,133 @@
 import { Effect, Layer } from 'effect'
-import { type BulkGreeksParams, ThetaDataApiClient } from '../services/ThetaDataApiClient'
-import { ApiConnectionError } from '../types/errors'
+import {
+  type BulkOptionsGreeksParams,
+  type ExpirationDate,
+  type OptionsGreeksData,
+  type TerminalStatus,
+  ThetaDataApiClient,
+} from '../services/ThetaDataApiClient'
 
 export const ThetaDataApiClientTest = Layer.succeed(ThetaDataApiClient, {
-  getExpirations: (root: string) => {
-    if (root === 'SPXW' || root === 'SPX') {
-      return Effect.succeed(['2024-03-15', '2024-03-22', '2024-03-29'] as const)
-    }
-    return Effect.fail(
-      new ApiConnectionError({
-        message: `Unknown root symbol: ${root}`,
-        statusCode: 404,
-        url: '/v2/list/expirations',
-      }),
-    )
+  healthCheck: () =>
+    Effect.succeed<TerminalStatus>({
+      isConnected: true,
+      status: 'CONNECTED',
+      timestamp: new Date(),
+    }),
+
+  listExpirations: () => {
+    // Mock expiration dates
+    const expirations: ExpirationDate[] = [
+      { date: '2024-03-22', daysToExpiration: 7 },
+      { date: '2024-03-29', daysToExpiration: 14 },
+      { date: '2024-04-05', daysToExpiration: 21 },
+    ]
+    return Effect.succeed(expirations as ReadonlyArray<ExpirationDate>)
   },
 
-  getBulkGreeks: (params: BulkGreeksParams) => {
-    if (params.format === 'csv' || !params.format) {
-      // Return CSV data matching actual ThetaData API format
-      // Format: ms_of_day,bid,ask,delta,theta,vega,rho,epsilon,lambda,implied_vol,iv_error,ms_of_day2,underlying_price,date
-      return Effect.succeed(
-        'ms_of_day,bid,ask,delta,theta,vega,rho,epsilon,lambda,implied_vol,iv_error,ms_of_day2,underlying_price,date\n' +
-          `34200000,114.95,115.05,0.9988,-0.0393,0.0708,0.7094,-1.9697,1.5629,3.3828,0,34200000,5179.94,${params.start_date}\n` +
-          `34260000,115.05,115.2,0.9988,-0.0392,0.0705,0.7094,-1.971,1.5623,3.3828,0,34260000,5180.06,${params.start_date}`,
-      )
-    }
-    // Return JSON format matching actual ThetaData API structure
-    return Effect.succeed(
-      JSON.stringify({
-        header: {
-          error_type: null,
-          error_msg: null,
-        },
-        response: [
-          {
-            ticks: [
-              [
-                34200000, // ms_of_day
-                114.95, // bid
-                115.05, // ask
-                0.9988, // delta
-                -0.0393, // theta
-                0.0708, // vega
-                0.7094, // rho
-                -1.9697, // epsilon
-                1.5629, // lambda
-                3.3828, // implied_vol
-                0, // iv_error
-                34200000, // ms_of_day2
-                5179.94, // underlying_price
-                parseInt(params.start_date), // date
-              ],
-              [
-                34260000,
-                115.05,
-                115.2,
-                0.9988,
-                -0.0392,
-                0.0705,
-                0.7094,
-                -1.971,
-                1.5623,
-                3.3828,
-                0,
-                34260000,
-                5180.06,
-                parseInt(params.start_date),
-              ],
-            ],
-            contract: {
-              root: params.root,
-              expiration: parseInt(params.exp),
-              strike: 5000,
-              right: 'C',
-            },
-          },
-          {
-            ticks: [
-              [
-                34200000,
-                0.95,
-                1.05,
-                -0.002,
-                -0.0073,
-                0.1624,
-                -0.0072,
-                0.007,
-                -37.8591,
-                0.6374,
-                0,
-                34200000,
-                5179.94,
-                parseInt(params.start_date),
-              ],
-              [
-                34260000,
-                1.0,
-                1.1,
-                -0.0021,
-                -0.0074,
-                0.1625,
-                -0.0073,
-                0.0071,
-                -37.9,
-                0.6375,
-                0,
-                34260000,
-                5180.06,
-                parseInt(params.start_date),
-              ],
-            ],
-            contract: {
-              root: params.root,
-              expiration: parseInt(params.exp),
-              strike: 5000,
-              right: 'P',
-            },
-          },
-        ],
-      }),
-    )
-  },
+  getBulkOptionsGreeks: (_params: BulkOptionsGreeksParams) => {
+    // Return mock Greeks data for all strikes and rights for the given expiration
+    // The bulk endpoint returns ALL contracts, not filtered
+    const mockGreeks: OptionsGreeksData[] = [
+      {
+        strike: 5000,
+        right: 'C',
+        bid: 114.95,
+        ask: 115.05,
+        delta: 0.9988,
+        theta: -0.0393,
+        vega: 0.0708,
+        rho: 0.7094,
+        epsilon: -1.9697,
+        lambda: 1.5629,
+        impliedVolatility: 3.3828,
+        ivError: 0,
+        underlyingPrice: 5179.94,
+        timestamp: new Date(),
+      },
+      {
+        strike: 5000,
+        right: 'P',
+        bid: 0.95,
+        ask: 1.05,
+        delta: -0.002,
+        theta: -0.0073,
+        vega: 0.1624,
+        rho: -0.0072,
+        epsilon: 0.007,
+        lambda: -37.8591,
+        impliedVolatility: 0.6374,
+        ivError: 0,
+        underlyingPrice: 5179.94,
+        timestamp: new Date(),
+      },
+      {
+        strike: 5050,
+        right: 'C',
+        bid: 66.45,
+        ask: 66.95,
+        delta: 0.8547,
+        theta: -0.1256,
+        vega: 0.3456,
+        rho: 0.5234,
+        epsilon: -2.3456,
+        lambda: 2.1234,
+        impliedVolatility: 4.2345,
+        ivError: 0,
+        underlyingPrice: 5179.94,
+        timestamp: new Date(),
+      },
+      {
+        strike: 5050,
+        right: 'P',
+        bid: 2.85,
+        ask: 2.95,
+        delta: -0.1453,
+        theta: -0.0234,
+        vega: 0.3456,
+        rho: -0.0234,
+        epsilon: 0.0123,
+        lambda: -25.3456,
+        impliedVolatility: 0.8234,
+        ivError: 0,
+        underlyingPrice: 5179.94,
+        timestamp: new Date(),
+      },
+      {
+        strike: 5100,
+        right: 'C',
+        bid: 32.1,
+        ask: 32.5,
+        delta: 0.6234,
+        theta: -0.2145,
+        vega: 0.5678,
+        rho: 0.3456,
+        epsilon: -3.1234,
+        lambda: 3.4567,
+        impliedVolatility: 5.1234,
+        ivError: 0,
+        underlyingPrice: 5179.94,
+        timestamp: new Date(),
+      },
+      {
+        strike: 5100,
+        right: 'P',
+        bid: 12.3,
+        ask: 12.6,
+        delta: -0.3766,
+        theta: -0.0567,
+        vega: 0.5678,
+        rho: -0.0456,
+        epsilon: 0.0234,
+        lambda: -18.2345,
+        impliedVolatility: 1.0234,
+        ivError: 0,
+        underlyingPrice: 5179.94,
+        timestamp: new Date(),
+      },
+    ]
 
-  checkConnection: () => Effect.succeed(true),
+    // Bulk endpoint returns all contracts for the expiration
+    return Effect.succeed(mockGreeks as ReadonlyArray<OptionsGreeksData>)
+  },
 })
