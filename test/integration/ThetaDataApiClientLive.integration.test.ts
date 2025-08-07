@@ -180,7 +180,7 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('ThetaDataApiClientLive Integrati
           throw new Error(`Invalid underlyingPrice at index ${index}: ${greek.underlyingPrice}`)
         }
       })
-    })
+    }, 30000) // 30 second timeout
   })
 
   describe('Error Handling', () => {
