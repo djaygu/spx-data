@@ -1,4 +1,4 @@
-import { Effect, Layer, Ref } from 'effect'
+import { Effect, Layer, Ref, Stream } from 'effect'
 import {
   BulkGreeksProcessor,
   ExpirationFilterError,
@@ -202,6 +202,89 @@ export const BulkGreeksProcessorTest = Layer.effect(
         }),
 
       getProgress: () => Ref.get(progressRef),
+
+      streamBulkGreeks: (params) =>
+        Stream.unwrap(
+          Effect.gen(function* (_) {
+            const _startTime = new Date()
+
+            // Generate mock expirations based on trade date
+            const tradeDate = new Date(
+              params.tradeDate.slice(0, 4) +
+                '-' +
+                params.tradeDate.slice(4, 6) +
+                '-' +
+                params.tradeDate.slice(6, 8),
+            )
+
+            // Create mock expirations (0DTE, 1DTE, 2DTE, 7DTE, 14DTE, 30DTE)
+            const mockExpirations: ExpirationDate[] = [0, 1, 2, 7, 14, 30]
+              .filter((dte) => params.maxDTE === undefined || dte <= params.maxDTE)
+              .map((dte) => {
+                const expDate = new Date(tradeDate)
+                expDate.setDate(expDate.getDate() + dte)
+                return {
+                  date: expDate.toISOString().split('T')[0],
+                  daysToExpiration: dte,
+                }
+              })
+
+            yield* _(
+              Ref.set(progressRef, {
+                current: 0,
+                total: mockExpirations.length,
+                currentExpiration: undefined,
+              }),
+            )
+
+            // Create a stream from the mock expirations with indexes
+            return Stream.fromIterable(mockExpirations.map((exp, index) => ({ exp, index }))).pipe(
+              Stream.mapEffect(
+                ({ exp, index }) =>
+                  Effect.gen(function* (_) {
+                    const expDateStr = exp.date.replace(/-/g, '')
+
+                    yield* _(
+                      Ref.update(progressRef, (p) =>
+                        p ? { ...p, current: index + 1, currentExpiration: expDateStr } : p,
+                      ),
+                    )
+
+                    const processingStart = Date.now()
+
+                    // Simulate processing delay (50-200ms)
+                    yield* _(Effect.sleep(50 + Math.random() * 150))
+
+                    // Simulate occasional failures (10% chance)
+                    if (Math.random() < 0.1 && params.root !== 'TEST_NO_FAILURES') {
+                      const error = new Error(`Mock API error for expiration ${expDateStr}`)
+                      return {
+                        expiration: expDateStr,
+                        success: false,
+                        error,
+                        recordCount: 0,
+                        processingTimeMs: Date.now() - processingStart,
+                      } as ExpirationResult
+                    } else {
+                      // Generate mock data (50-200 records per expiration)
+                      const recordCount = 50 + Math.floor(Math.random() * 150)
+                      const data = generateMockGreeksData(expDateStr, recordCount)
+
+                      return {
+                        expiration: expDateStr,
+                        success: true,
+                        data,
+                        recordCount,
+                        processingTimeMs: Date.now() - processingStart,
+                      } as ExpirationResult
+                    }
+                  }),
+                { concurrency: params.concurrency || 1 },
+              ),
+              Stream.onDone(() => Ref.set(progressRef, undefined)),
+            )
+          }),
+        ),
     })
   }),
 )

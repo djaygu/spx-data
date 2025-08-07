@@ -1,4 +1,4 @@
-import { Effect, Layer, Ref } from 'effect'
+import { Effect, Layer, Ref, Stream } from 'effect'
 import { AppConfig } from '../config/AppConfig'
 import {
   type BulkGreeksParams,
@@ -186,6 +186,120 @@ export const BulkGreeksProcessorLive = Layer.effect(
         filterExpirationsInternal(expirations, tradeDate, maxDTE),
 
       getProgress: () => Ref.get(progressRef),
+
+      streamBulkGreeks: (params: BulkGreeksParams) =>
+        Stream.unwrap(
+          Effect.gen(function* (_) {
+            // Get list of available expirations
+            const allExpirations = yield* _(
+              apiClient.listExpirations().pipe(
+                Effect.catchAll((error) =>
+                  Effect.fail(
+                    new BulkProcessingError({
+                      message: `Failed to list expirations: ${error.message}`,
+                      cause: error,
+                    }),
+                  ),
+                ),
+              ),
+            )
+
+            // Filter expirations based on trade date and maxDTE
+            const filteredExpirations = yield* _(
+              filterExpirationsInternal(allExpirations, params.tradeDate, params.maxDTE).pipe(
+                Effect.catchAll((error) =>
+                  Effect.fail(
+                    new BulkProcessingError({
+                      message: error.message,
+                      cause: error,
+                    }),
+                  ),
+                ),
+              ),
+            )
+
+            if (filteredExpirations.length === 0) {
+              return Stream.empty
+            }
+
+            // Set initial progress
+            yield* _(
+              Ref.set(progressRef, {
+                current: 0,
+                total: filteredExpirations.length,
+                currentExpiration: undefined,
+              }),
+            )
+
+            const concurrency = params.concurrency ?? config.thetaData.maxConcurrentRequests ?? 2
+
+            // Create a function to process a single expiration
+            const processExpiration = (
+              exp: ExpirationDate,
+              index: number,
+            ): Effect.Effect<ExpirationResult, never> =>
+              Effect.gen(function* (_) {
+                const expDateStr = exp.date.replace(/-/g, '')
+
+                // Update progress
+                yield* _(
+                  Ref.update(progressRef, (p) =>
+                    p ? { ...p, current: index + 1, currentExpiration: expDateStr } : p,
+                  ),
+                )
+
+                const processingStart = Date.now()
+
+                // Prepare parameters for bulk Greeks request
+                const bulkParams: BulkOptionsGreeksParams = {
+                  root: params.root,
+                  expiration: expDateStr,
+                  startDate: params.tradeDate,
+                  endDate: params.tradeDate,
+                  interval: params.interval,
+                  rth: params.rth ?? true,
+                }
+
+                // Fetch data with error handling
+                const result = yield* _(
+                  apiClient.getBulkOptionsGreeks(bulkParams).pipe(
+                    Effect.map((data) => ({
+                      expiration: expDateStr,
+                      success: true as const,
+                      data,
+                      recordCount: data.length,
+                      processingTimeMs: Date.now() - processingStart,
+                    })),
+                    Effect.catchAll((error) =>
+                      Effect.succeed({
+                        expiration: expDateStr,
+                        success: false as const,
+                        error: error instanceof Error ? error : new Error(String(error)),
+                        recordCount: 0,
+                        processingTimeMs: Date.now() - processingStart,
+                      }),
+                    ),
+                  ),
+                )
+
+                return result
+              })
+
+            // Stream expirations with concurrent processing
+            return Stream.fromIterable(filteredExpirations).pipe(
+              Stream.zipWithIndex,
+              Stream.mapEffect(([exp, index]) => processExpiration(exp, index), { concurrency }),
+              Stream.tap(() =>
+                Effect.gen(function* (_) {
+                  const progress = yield* _(Ref.get(progressRef))
+                  if (progress && progress.current === progress.total) {
+                    yield* _(Ref.set(progressRef, undefined))
+                  }
+                }),
+              ),
+            )
+          }),
+        ),
     })
   }),
 )

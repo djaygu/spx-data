@@ -1,4 +1,4 @@
-import { Context, Data, type Effect } from 'effect'
+import { Context, Data, type Effect, type Stream } from 'effect'
 import type { ExpirationDate, OptionsGreeksData } from './ThetaDataApiClient'
 
 /**
@@ -89,5 +89,15 @@ export class BulkGreeksProcessor extends Context.Tag('BulkGreeksProcessor')<
       { current: number; total: number; currentExpiration?: string } | undefined,
       never
     >
+
+    /**
+     * Stream bulk Greeks data for all expirations on a trade date
+     * Results are yielded as each expiration completes processing
+     * @param params Processing parameters including root symbol and trade date
+     * @returns Stream of expiration results as they complete
+     */
+    readonly streamBulkGreeks: (
+      params: BulkGreeksParams,
+    ) => Stream.Stream<ExpirationResult, BulkProcessingError>
   }
 >() {}

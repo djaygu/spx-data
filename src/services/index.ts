@@ -1,4 +1,7 @@
 export * from './BulkGreeksProcessor'
+export * from './DataPipeline'
+export * from './DataWriter'
 export * from './InventoryService'
+export * from './MetricsWriter'
 export * from './StatusService'
 export * from './ThetaDataApiClient'
