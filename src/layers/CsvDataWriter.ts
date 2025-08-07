@@ -1,4 +1,3 @@
-import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { Effect, Layer, Ref } from 'effect'
 import { DataWriter, DataWriterError } from '../services/DataWriter'
@@ -8,10 +7,10 @@ interface CsvWriterState {
   currentExpiration?: string
   currentTempPath?: string
   currentFinalPath?: string
+  currentWriter?: ReturnType<ReturnType<typeof Bun.file>['writer']>
   filesCreated: string[]
   totalRecordsWritten: number
   totalBytesWritten: number
-  headerWritten: boolean
 }
 
 const formatCsvValue = (value: unknown): string => {
@@ -55,7 +54,6 @@ export const CsvDataWriterLive = Layer.effect(
         filesCreated: [],
         totalRecordsWritten: 0,
         totalBytesWritten: 0,
-        headerWritten: false,
       }),
     )
 
@@ -64,7 +62,8 @@ export const CsvDataWriterLive = Layer.effect(
     const ensureDirectoryExists = (dirPath: string) =>
       Effect.tryPromise({
         try: async () => {
-          await fs.mkdir(dirPath, { recursive: true })
+          // Use Bun's shell for directory creation - faster than Node.js fs
+          await Bun.$`mkdir -p ${dirPath}`.quiet()
         },
         catch: (error) =>
           new DataWriterError({ message: `Failed to create directory: ${dirPath}`, cause: error }),
@@ -72,12 +71,25 @@ export const CsvDataWriterLive = Layer.effect(
 
     const closeCurrentFile = Effect.gen(function* (_) {
       const state = yield* _(Ref.get(stateRef))
-      if (state.currentTempPath && state.currentFinalPath) {
-        // Rename temp file to final path
+      if (state.currentWriter) {
+        // Close the writer
         yield* _(
           Effect.tryPromise({
             try: async () => {
-              await fs.rename(state.currentTempPath!, state.currentFinalPath!)
+              await state.currentWriter!.end()
+            },
+            catch: (error) =>
+              new DataWriterError({ message: 'Failed to close writer', cause: error }),
+          }),
+        )
+      }
+
+      if (state.currentTempPath && state.currentFinalPath) {
+        // Use Bun's shell for atomic rename - faster than Node.js fs
+        yield* _(
+          Effect.tryPromise({
+            try: async () => {
+              await Bun.$`mv ${state.currentTempPath} ${state.currentFinalPath}`.quiet()
             },
             catch: (error) =>
               new DataWriterError({ message: 'Failed to rename temp file', cause: error }),
@@ -90,9 +102,9 @@ export const CsvDataWriterLive = Layer.effect(
             ...s,
             filesCreated: [...s.filesCreated, state.currentFinalPath!],
             currentExpiration: undefined,
+            currentWriter: undefined,
             currentTempPath: undefined,
             currentFinalPath: undefined,
-            headerWritten: false,
           })),
         )
       }
@@ -117,14 +129,34 @@ export const CsvDataWriterLive = Layer.effect(
             const finalPath = path.join(expirationDir, fileName)
             const tempPath = `${finalPath}.tmp`
 
-            // Update state with new file paths
+            // Create a new writer for this file
+            const file = Bun.file(tempPath)
+            const writer = file.writer()
+
+            // Write headers
+            const headerLine = `${CSV_HEADERS}\n`
+            const headerBytes = Buffer.byteLength(headerLine)
+
+            yield* _(
+              Effect.tryPromise({
+                try: async () => {
+                  writer.write(headerLine)
+                  await writer.flush()
+                },
+                catch: (error) =>
+                  new DataWriterError({ message: 'Failed to write headers', cause: error }),
+              }),
+            )
+
+            // Update state with new writer
             yield* _(
               Ref.update(stateRef, (s) => ({
                 ...s,
                 currentExpiration: metadata.expiration,
+                currentWriter: writer,
                 currentTempPath: tempPath,
                 currentFinalPath: finalPath,
-                headerWritten: false,
+                totalBytesWritten: s.totalBytesWritten + headerBytes,
               })),
             )
           }
@@ -132,33 +164,20 @@ export const CsvDataWriterLive = Layer.effect(
           // Get current state again after potential file change
           const currentState = yield* _(Ref.get(stateRef))
 
-          if (!currentState.currentTempPath) {
-            return yield* _(Effect.fail(new DataWriterError({ message: 'No active file' })))
+          if (!currentState.currentWriter) {
+            return yield* _(Effect.fail(new DataWriterError({ message: 'No active writer' })))
           }
 
-          // Prepare data to write
-          let dataToWrite = ''
+          // Format chunk data
+          const csvLines = `${chunk.map(optionsDataToCsvRow).join('\n')}\n`
+          const chunkBytes = Buffer.byteLength(csvLines)
 
-          // Write headers if this is the first chunk for this file
-          if (!currentState.headerWritten) {
-            dataToWrite = `${CSV_HEADERS}\n`
-            yield* _(
-              Ref.update(stateRef, (s) => ({
-                ...s,
-                headerWritten: true,
-              })),
-            )
-          }
-
-          // Add data rows
-          dataToWrite += `${chunk.map(optionsDataToCsvRow).join('\n')}\n`
-          const chunkBytes = Buffer.byteLength(dataToWrite)
-
-          // Append data to file
+          // Write chunk using the writer
           yield* _(
             Effect.tryPromise({
               try: async () => {
-                await fs.appendFile(currentState.currentTempPath!, dataToWrite)
+                currentState.currentWriter!.write(csvLines)
+                await currentState.currentWriter!.flush()
               },
               catch: (error) =>
                 new DataWriterError({ message: 'Failed to write chunk', cause: error }),
