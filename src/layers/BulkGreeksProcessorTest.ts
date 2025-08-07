@@ -123,8 +123,9 @@ export const BulkGreeksProcessorTest = Layer.effect(
                 return Effect.succeed(undefined)
               }
 
-              // Generate mock data (50-200 records per expiration)
-              const recordCount = 50 + Math.floor(Math.random() * 150)
+              // Generate mock data (deterministic count based on expiration)
+              // Use expiration date as seed for consistent record count
+              const recordCount = 50 + ((exp.daysToExpiration * 7) % 150)
               const data = generateMockGreeksData(expDateStr, recordCount)
 
               results.push({
@@ -266,8 +267,9 @@ export const BulkGreeksProcessorTest = Layer.effect(
                         processingTimeMs: Date.now() - processingStart,
                       } as ExpirationResult
                     } else {
-                      // Generate mock data (50-200 records per expiration)
-                      const recordCount = 50 + Math.floor(Math.random() * 150)
+                      // Generate mock data (deterministic count based on expiration)
+                      // Use expiration date as seed for consistent record count
+                      const recordCount = 50 + ((exp.daysToExpiration * 7) % 150)
                       const data = generateMockGreeksData(expDateStr, recordCount)
 
                       return {

@@ -31,6 +31,59 @@ export const BulkGreeksProcessorLive = Layer.effect(
       ),
     )
 
+    // Shared function to process a single expiration
+    const processExpiration = (
+      exp: ExpirationDate,
+      index: number,
+      params: BulkGreeksParams,
+    ): Effect.Effect<ExpirationResult, never> =>
+      Effect.gen(function* (_) {
+        const expDateStr = exp.date.replace(/-/g, '')
+
+        // Update progress
+        yield* _(
+          Ref.update(progressRef, (p) =>
+            p ? { ...p, current: index + 1, currentExpiration: expDateStr } : p,
+          ),
+        )
+
+        const processingStart = Date.now()
+
+        // Prepare parameters for bulk Greeks request
+        const bulkParams: BulkOptionsGreeksParams = {
+          root: params.root,
+          expiration: expDateStr,
+          startDate: params.tradeDate,
+          endDate: params.tradeDate,
+          interval: params.interval,
+          rth: params.rth ?? true,
+        }
+
+        // Fetch data with error handling
+        const result = yield* _(
+          apiClient.getBulkOptionsGreeks(bulkParams).pipe(
+            Effect.map((data) => ({
+              expiration: expDateStr,
+              success: true as const,
+              data,
+              recordCount: data.length,
+              processingTimeMs: Date.now() - processingStart,
+            })),
+            Effect.catchAll((error) =>
+              Effect.succeed({
+                expiration: expDateStr,
+                success: false as const,
+                error: error instanceof Error ? error : new Error(String(error)),
+                recordCount: 0,
+                processingTimeMs: Date.now() - processingStart,
+              }),
+            ),
+          ),
+        )
+
+        return result
+      })
+
     return BulkGreeksProcessor.of({
       processBulkGreeks: (params: BulkGreeksParams) =>
         Effect.gen(function* (_) {
@@ -90,61 +143,10 @@ export const BulkGreeksProcessorLive = Layer.effect(
           // Process each expiration, capturing both successes and failures
           const concurrency = params.concurrency ?? config.thetaData.maxConcurrentRequests ?? 2
 
-          const processExpiration = (
-            exp: ExpirationDate,
-            index: number,
-          ): Effect.Effect<ExpirationResult, never> =>
-            Effect.gen(function* (_) {
-              const expDateStr = exp.date.replace(/-/g, '')
-
-              // Update progress
-              yield* _(
-                Ref.update(progressRef, (p) =>
-                  p ? { ...p, current: index + 1, currentExpiration: expDateStr } : p,
-                ),
-              )
-
-              const processingStart = Date.now()
-
-              // Prepare parameters for bulk Greeks request
-              const bulkParams: BulkOptionsGreeksParams = {
-                root: params.root,
-                expiration: expDateStr,
-                startDate: params.tradeDate,
-                endDate: params.tradeDate,
-                interval: params.interval, // Optional interval for data points
-                rth: params.rth ?? true, // Default to regular trading hours
-              }
-
-              // Fetch data with error handling
-              const result = yield* _(
-                apiClient.getBulkOptionsGreeks(bulkParams).pipe(
-                  Effect.map((data) => ({
-                    expiration: expDateStr,
-                    success: true as const,
-                    data,
-                    recordCount: data.length,
-                    processingTimeMs: Date.now() - processingStart,
-                  })),
-                  Effect.catchAll((error) =>
-                    Effect.succeed({
-                      expiration: expDateStr,
-                      success: false as const,
-                      error: error instanceof Error ? error : new Error(String(error)),
-                      recordCount: 0,
-                      processingTimeMs: Date.now() - processingStart,
-                    }),
-                  ),
-                ),
-              )
-
-              return result
-            })
-
           // Process all expirations with specified concurrency
           const results = yield* _(
             Effect.all(
-              filteredExpirations.map((exp, idx) => processExpiration(exp, idx)),
+              filteredExpirations.map((exp, idx) => processExpiration(exp, idx, params)),
               { concurrency },
             ),
           )
@@ -233,62 +235,12 @@ export const BulkGreeksProcessorLive = Layer.effect(
 
             const concurrency = params.concurrency ?? config.thetaData.maxConcurrentRequests ?? 2
 
-            // Create a function to process a single expiration
-            const processExpiration = (
-              exp: ExpirationDate,
-              index: number,
-            ): Effect.Effect<ExpirationResult, never> =>
-              Effect.gen(function* (_) {
-                const expDateStr = exp.date.replace(/-/g, '')
-
-                // Update progress
-                yield* _(
-                  Ref.update(progressRef, (p) =>
-                    p ? { ...p, current: index + 1, currentExpiration: expDateStr } : p,
-                  ),
-                )
-
-                const processingStart = Date.now()
-
-                // Prepare parameters for bulk Greeks request
-                const bulkParams: BulkOptionsGreeksParams = {
-                  root: params.root,
-                  expiration: expDateStr,
-                  startDate: params.tradeDate,
-                  endDate: params.tradeDate,
-                  interval: params.interval,
-                  rth: params.rth ?? true,
-                }
-
-                // Fetch data with error handling
-                const result = yield* _(
-                  apiClient.getBulkOptionsGreeks(bulkParams).pipe(
-                    Effect.map((data) => ({
-                      expiration: expDateStr,
-                      success: true as const,
-                      data,
-                      recordCount: data.length,
-                      processingTimeMs: Date.now() - processingStart,
-                    })),
-                    Effect.catchAll((error) =>
-                      Effect.succeed({
-                        expiration: expDateStr,
-                        success: false as const,
-                        error: error instanceof Error ? error : new Error(String(error)),
-                        recordCount: 0,
-                        processingTimeMs: Date.now() - processingStart,
-                      }),
-                    ),
-                  ),
-                )
-
-                return result
-              })
-
             // Stream expirations with concurrent processing
             return Stream.fromIterable(filteredExpirations).pipe(
               Stream.zipWithIndex,
-              Stream.mapEffect(([exp, index]) => processExpiration(exp, index), { concurrency }),
+              Stream.mapEffect(([exp, index]) => processExpiration(exp, index, params), {
+                concurrency,
+              }),
               Stream.tap(() =>
                 Effect.gen(function* (_) {
                   const progress = yield* _(Ref.get(progressRef))

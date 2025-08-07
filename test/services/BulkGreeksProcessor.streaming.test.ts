@@ -38,7 +38,7 @@ describe('BulkGreeksProcessor Streaming', () => {
 
     it('should produce same results as batch method', async () => {
       const params: BulkGreeksParams = {
-        root: 'SPXW',
+        root: 'TEST_NO_FAILURES', // Use deterministic mock without random failures
         tradeDate: '20240314',
         maxDTE: 7,
         concurrency: 2,
@@ -64,13 +64,11 @@ describe('BulkGreeksProcessor Streaming', () => {
       // Should have same number of results
       expect(streamResults.length).toBe(batchResults.results.length)
 
-      // Should have approximately same total record count (allow for randomness in mock data)
+      // Should have exact same total record count (deterministic mock data)
       const streamTotalRecords = streamResults
         .filter((r) => r.success)
         .reduce((sum, r) => sum + r.recordCount, 0)
-      // Allow 50% variance due to random mock data generation
-      expect(streamTotalRecords).toBeGreaterThan(batchResults.totalRecords * 0.5)
-      expect(streamTotalRecords).toBeLessThan(batchResults.totalRecords * 1.5)
+      expect(streamTotalRecords).toBe(batchResults.totalRecords)
     })
 
     it('should handle partial failures gracefully', async () => {
