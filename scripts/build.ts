@@ -2,7 +2,7 @@
 
 import { $ } from 'bun'
 
-const entrypoint = './src/main.ts'
+const entrypoint = './src/cli.ts'
 const outdir = './dist'
 const outfile = 'spx-data'
 
@@ -30,7 +30,7 @@ try {
 
   // Make the output executable
   const outputPath = `${outdir}/${outfile}`
-  await $`mv ${outdir}/main.js ${outputPath}`
+  await $`mv ${outdir}/cli.js ${outputPath}`
   await $`chmod +x ${outputPath}`
 
   console.log(`✓ Build complete: ${outputPath}`)
