@@ -1,5 +1,5 @@
-import { Effect, Layer, Ref } from 'effect'
 import * as path from 'node:path'
+import { Effect, Layer, Ref } from 'effect'
 import { DataWriter, DataWriterError, type WriteMetadata } from '../services/DataWriter'
 import type { OptionsGreeksData } from '../services/ThetaDataApiClient'
 
@@ -55,7 +55,10 @@ export const DataWriterTest = Layer.effect(
 
           // Track file creation on first chunk of new expiration
           if (metadata.isFirstChunk) {
-            const fileName = path.join(metadata.outputDir, `spxw_exp_${metadata.expiration.replace(/-/g, '')}.csv`)
+            const fileName = path.join(
+              metadata.outputDir,
+              `spxw_exp_${metadata.expiration.replace(/-/g, '')}.csv`,
+            )
             yield* _(
               Ref.update(stateRef, (s) => ({
                 ...s,
@@ -133,7 +136,10 @@ export const configureTestWriter = (config: { shouldFail?: boolean; failureMessa
             )
 
             if (metadata.isFirstChunk) {
-              const fileName = path.join(metadata.outputDir, `spxw_exp_${metadata.expiration.replace(/-/g, '')}.csv`)
+              const fileName = path.join(
+                metadata.outputDir,
+                `spxw_exp_${metadata.expiration.replace(/-/g, '')}.csv`,
+              )
               yield* _(
                 Ref.update(stateRef, (s) => ({
                   ...s,

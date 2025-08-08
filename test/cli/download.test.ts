@@ -1,9 +1,18 @@
-import { describe, it, expect } from 'bun:test'
-import { Effect, Layer, Stream, ConfigProvider } from 'effect'
+import { describe, expect, it } from 'bun:test'
+import { ConfigProvider, Effect, Layer, Stream } from 'effect'
 import { download } from '@/cli/commands/download'
-import { ThetaDataApiClient, ThetaDataConnectionError, ThetaDataApiError } from '@/services/ThetaDataApiClient'
-import { BulkGreeksProcessor, BulkProcessingError, ExpirationFilterError, type ExpirationResult } from '@/services/BulkGreeksProcessor'
+import {
+  BulkGreeksProcessor,
+  BulkProcessingError,
+  ExpirationFilterError,
+  type ExpirationResult,
+} from '@/services/BulkGreeksProcessor'
 import { DataPipeline, DataPipelineError, type PipelineProgress } from '@/services/DataPipeline'
+import {
+  ThetaDataApiClient,
+  ThetaDataApiError,
+  ThetaDataConnectionError,
+} from '@/services/ThetaDataApiClient'
 
 // Mock implementations for testing
 const mockApiClient = ThetaDataApiClient.of({
@@ -19,12 +28,17 @@ const mockApiClient = ThetaDataApiClient.of({
       { date: '2024-01-19', daysToExpiration: 4 },
       { date: '2024-01-22', daysToExpiration: 7 },
     ]),
-  getBulkOptionsGreeks: () => Effect.fail(new ThetaDataApiError({ message: 'Not implemented in test' })),
+  getBulkOptionsGreeks: () =>
+    Effect.fail(new ThetaDataApiError({ message: 'Not implemented in test' })),
 })
 
 const mockProcessor = BulkGreeksProcessor.of({
-  processBulkGreeks: () => Effect.fail(new BulkProcessingError({ message: 'Not implemented in test' })),
-  filterExpirations: () => Effect.fail(new ExpirationFilterError({ message: 'Not implemented in test', tradeDate: '20240115' })),
+  processBulkGreeks: () =>
+    Effect.fail(new BulkProcessingError({ message: 'Not implemented in test' })),
+  filterExpirations: () =>
+    Effect.fail(
+      new ExpirationFilterError({ message: 'Not implemented in test', tradeDate: '20240115' }),
+    ),
   getProgress: () => Effect.succeed(undefined),
   streamBulkGreeks: () => {
     // Create mock expiration results
@@ -94,18 +108,14 @@ describe('Download Command', () => {
   describe('Date Validation', () => {
     it('should accept valid date format YYYY-MM-DD', async () => {
       const result = await Effect.runPromise(
-        download.handler({ date: '2024-01-15', dryRun: true }).pipe(
-          Effect.provide(TestLive),
-        ),
+        download.handler({ date: '2024-01-15', dryRun: true }).pipe(Effect.provide(TestLive)),
       )
       expect(result).toBeUndefined()
     })
 
     it('should reject invalid date format', async () => {
       const result = await Effect.runPromiseExit(
-        download.handler({ date: '01/15/2024', dryRun: true }).pipe(
-          Effect.provide(TestLive),
-        ),
+        download.handler({ date: '01/15/2024', dryRun: true }).pipe(Effect.provide(TestLive)),
       )
       expect(result._tag).toBe('Failure')
       if (result._tag === 'Failure') {
@@ -116,18 +126,14 @@ describe('Download Command', () => {
 
     it('should reject invalid date string', async () => {
       const result = await Effect.runPromiseExit(
-        download.handler({ date: 'not-a-date', dryRun: true }).pipe(
-          Effect.provide(TestLive),
-        ),
+        download.handler({ date: 'not-a-date', dryRun: true }).pipe(Effect.provide(TestLive)),
       )
       expect(result._tag).toBe('Failure')
     })
 
     it('should handle dates with leading zeros', async () => {
       const result = await Effect.runPromise(
-        download.handler({ date: '2024-01-05', dryRun: true }).pipe(
-          Effect.provide(TestLive),
-        ),
+        download.handler({ date: '2024-01-05', dryRun: true }).pipe(Effect.provide(TestLive)),
       )
       expect(result).toBeUndefined()
     })
@@ -136,9 +142,7 @@ describe('Download Command', () => {
   describe('Dry Run Mode', () => {
     it('should preview download without fetching data when dry-run is true', async () => {
       const result = await Effect.runPromise(
-        download.handler({ date: '2024-01-15', dryRun: true }).pipe(
-          Effect.provide(TestLive),
-        ),
+        download.handler({ date: '2024-01-15', dryRun: true }).pipe(Effect.provide(TestLive)),
       )
 
       expect(result).toBeUndefined()
@@ -146,18 +150,14 @@ describe('Download Command', () => {
 
     it('should list expirations without downloading in dry-run mode', async () => {
       const result = await Effect.runPromise(
-        download.handler({ date: '2024-01-15', dryRun: true }).pipe(
-          Effect.provide(TestLive),
-        ),
+        download.handler({ date: '2024-01-15', dryRun: true }).pipe(Effect.provide(TestLive)),
       )
       expect(result).toBeUndefined()
     })
 
     it('should show directory structure in dry-run mode', async () => {
       const result = await Effect.runPromise(
-        download.handler({ date: '2024-01-15', dryRun: true }).pipe(
-          Effect.provide(TestLive),
-        ),
+        download.handler({ date: '2024-01-15', dryRun: true }).pipe(Effect.provide(TestLive)),
       )
       expect(result).toBeUndefined()
     })
@@ -166,18 +166,14 @@ describe('Download Command', () => {
   describe('Progress Tracking', () => {
     it('should track total and processed expirations', async () => {
       const result = await Effect.runPromise(
-        download.handler({ date: '2024-01-15', dryRun: false }).pipe(
-          Effect.provide(TestLive),
-        ),
+        download.handler({ date: '2024-01-15', dryRun: false }).pipe(Effect.provide(TestLive)),
       )
       expect(result).toBeUndefined()
     })
 
     it('should calculate and display throughput', async () => {
       const result = await Effect.runPromise(
-        download.handler({ date: '2024-01-15', dryRun: false }).pipe(
-          Effect.provide(TestLive),
-        ),
+        download.handler({ date: '2024-01-15', dryRun: false }).pipe(Effect.provide(TestLive)),
       )
       expect(result).toBeUndefined()
     })
@@ -188,9 +184,11 @@ describe('Download Command', () => {
       const errorApiClient = ThetaDataApiClient.of({
         ...mockApiClient,
         listExpirations: () =>
-          Effect.fail(new ThetaDataConnectionError({
-            message: 'Connection refused',
-          })),
+          Effect.fail(
+            new ThetaDataConnectionError({
+              message: 'Connection refused',
+            }),
+          ),
       })
 
       const ErrorLive = Layer.mergeAll(
@@ -201,9 +199,7 @@ describe('Download Command', () => {
       )
 
       const result = await Effect.runPromiseExit(
-        download.handler({ date: '2024-01-15', dryRun: false }).pipe(
-          Effect.provide(ErrorLive),
-        ),
+        download.handler({ date: '2024-01-15', dryRun: false }).pipe(Effect.provide(ErrorLive)),
       )
 
       expect(result._tag).toBe('Failure')
@@ -212,9 +208,11 @@ describe('Download Command', () => {
     it('should handle file system errors with recovery suggestions', async () => {
       const errorPipeline = DataPipeline.of({
         process: () =>
-          Effect.fail(new DataPipelineError({
-            message: 'Permission denied',
-          })),
+          Effect.fail(
+            new DataPipelineError({
+              message: 'Permission denied',
+            }),
+          ),
         getProgress: () => Effect.succeed(undefined),
       })
 
@@ -226,9 +224,7 @@ describe('Download Command', () => {
       )
 
       const result = await Effect.runPromiseExit(
-        download.handler({ date: '2024-01-15', dryRun: false }).pipe(
-          Effect.provide(ErrorLive),
-        ),
+        download.handler({ date: '2024-01-15', dryRun: false }).pipe(Effect.provide(ErrorLive)),
       )
 
       expect(result._tag).toBe('Failure')
@@ -238,18 +234,14 @@ describe('Download Command', () => {
   describe('Output Structure', () => {
     it('should create correct directory structure ./data/YYYYMMDD/', async () => {
       const result = await Effect.runPromise(
-        download.handler({ date: '2024-01-15', dryRun: false }).pipe(
-          Effect.provide(TestLive),
-        ),
+        download.handler({ date: '2024-01-15', dryRun: false }).pipe(Effect.provide(TestLive)),
       )
       expect(result).toBeUndefined()
     })
 
     it('should name files correctly as spxw_exp_YYYYMMDD.csv', async () => {
       const result = await Effect.runPromise(
-        download.handler({ date: '2024-01-15', dryRun: false }).pipe(
-          Effect.provide(TestLive),
-        ),
+        download.handler({ date: '2024-01-15', dryRun: false }).pipe(Effect.provide(TestLive)),
       )
       expect(result).toBeUndefined()
     })
@@ -258,18 +250,14 @@ describe('Download Command', () => {
   describe('Summary Statistics', () => {
     it('should display total records processed', async () => {
       const result = await Effect.runPromise(
-        download.handler({ date: '2024-01-15', dryRun: false }).pipe(
-          Effect.provide(TestLive),
-        ),
+        download.handler({ date: '2024-01-15', dryRun: false }).pipe(Effect.provide(TestLive)),
       )
       expect(result).toBeUndefined()
     })
 
     it('should display processing time and throughput', async () => {
       const result = await Effect.runPromise(
-        download.handler({ date: '2024-01-15', dryRun: false }).pipe(
-          Effect.provide(TestLive),
-        ),
+        download.handler({ date: '2024-01-15', dryRun: false }).pipe(Effect.provide(TestLive)),
       )
       expect(result).toBeUndefined()
     })
@@ -298,9 +286,7 @@ describe('Download Command', () => {
       )
 
       const result = await Effect.runPromise(
-        download.handler({ date: '2024-01-15', dryRun: false }).pipe(
-          Effect.provide(FailureLive),
-        ),
+        download.handler({ date: '2024-01-15', dryRun: false }).pipe(Effect.provide(FailureLive)),
       )
       expect(result).toBeUndefined()
     })

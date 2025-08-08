@@ -1,10 +1,10 @@
-import { describe, expect, it, beforeEach, afterEach } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import * as path from 'node:path'
 import { Chunk, Config, Context, Effect, Fiber, Layer, Stream } from 'effect'
 import type { AppConfig } from '../../src/config/AppConfig'
 import { BulkGreeksProcessorLive } from '../../src/layers/BulkGreeksProcessorLive'
-import { DataWriterCsvLive } from '../../src/layers/DataWriterCsvLive'
 import { DataPipelineLive } from '../../src/layers/DataPipelineLive'
+import { DataWriterCsvLive } from '../../src/layers/DataWriterCsvLive'
 import { JsonMetricsWriterLive } from '../../src/layers/JsonMetricsWriter'
 import { ThetaDataApiClientLive } from '../../src/layers/ThetaDataApiClientLive'
 import { BulkGreeksProcessor } from '../../src/services/BulkGreeksProcessor'
@@ -192,11 +192,9 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('DataPipeline Integration Tests',
         }
       }).pipe(Effect.provide(IntegrationLayer)),
     )
-
   }, 60000) // 60 second timeout for integration test
 
   it('should handle partial failures gracefully', async () => {
-
     const config: PipelineConfig = {
       outputDir: testOutputDir,
       chunkSize: 500,
@@ -263,11 +261,9 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('DataPipeline Integration Tests',
         }
       }).pipe(Effect.provide(IntegrationLayer)),
     )
-
   }, 60000)
 
   it('should track progress accurately during processing', async () => {
-
     const config: PipelineConfig = {
       outputDir: testOutputDir,
       chunkSize: 500,
@@ -331,6 +327,5 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('DataPipeline Integration Tests',
       const lastSnapshot = progressSnapshots[progressSnapshots.length - 1]
       expect(lastSnapshot.totalRecords).toBeGreaterThanOrEqual(firstSnapshot.totalRecords)
     }
-
   }, 60000)
 })

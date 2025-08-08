@@ -39,7 +39,7 @@ export const health = Command.make('health', {}, () =>
         console.log(`✗ Health check failed: ${error}`)
         console.log('Please ensure ThetaData Terminal is running on http://127.0.0.1:25510')
         yield* Effect.fail(error)
-      })
-    )
-  )
+      }),
+    ),
+  ),
 ).pipe(Command.withDescription('Check ThetaData Terminal connection status and configuration'))
