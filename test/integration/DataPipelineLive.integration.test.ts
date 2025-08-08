@@ -3,7 +3,7 @@ import * as path from 'node:path'
 import { Chunk, Config, Context, Effect, Fiber, Layer, Stream } from 'effect'
 import type { AppConfig } from '../../src/config/AppConfig'
 import { BulkGreeksProcessorLive } from '../../src/layers/BulkGreeksProcessorLive'
-import { CsvDataWriterLive } from '../../src/layers/CsvDataWriter'
+import { DataWriterCsvLive } from '../../src/layers/DataWriterCsvLive'
 import { DataPipelineLive } from '../../src/layers/DataPipelineLive'
 import { JsonMetricsWriterLive } from '../../src/layers/JsonMetricsWriter'
 import { ThetaDataApiClientLive } from '../../src/layers/ThetaDataApiClientLive'
@@ -103,7 +103,7 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('DataPipeline Integration Tests',
   // BulkGreeksProcessorLive requires ThetaDataApiClient and AppConfig
   // Build the layers from bottom up
   const IntegrationLayer = Layer.mergeAll(DataPipelineLive, BulkGreeksProcessorLive).pipe(
-    Layer.provide(CsvDataWriterLive),
+    Layer.provide(DataWriterCsvLive),
     Layer.provide(JsonMetricsWriterLive),
     Layer.provide(ThetaDataApiClientLive),
     Layer.provide(AppConfigLive),

@@ -6,7 +6,7 @@ import { Effect, Layer } from 'effect'
 import { ThetaDataApiClientLive } from '@/layers/ThetaDataApiClientLive'
 import { BulkGreeksProcessorLive } from '@/layers/BulkGreeksProcessorLive'
 import { DataPipelineLive } from '@/layers/DataPipelineLive'
-import { CsvDataWriterLive } from '@/layers/CsvDataWriter'
+import { DataWriterCsvLive } from '@/layers/DataWriterCsvLive'
 import { JsonMetricsWriterLive } from '@/layers/JsonMetricsWriter'
 import { health } from './commands/health'
 import { download } from './commands/download'
@@ -30,7 +30,7 @@ const BulkProcessorWithDeps = BulkGreeksProcessorLive.pipe(
 
 // DataPipelineLive needs DataWriter and MetricsWriter
 const DataPipelineWithDeps = DataPipelineLive.pipe(
-  Layer.provide(Layer.merge(CsvDataWriterLive, JsonMetricsWriterLive))
+  Layer.provide(Layer.merge(DataWriterCsvLive, JsonMetricsWriterLive))
 )
 
 // Merge all layers together

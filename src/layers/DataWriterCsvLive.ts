@@ -46,7 +46,7 @@ const optionsDataToCsvRow = (data: OptionsGreeksData): string => {
 const CSV_HEADERS =
   'strike,right,bid,ask,delta,theta,vega,rho,epsilon,lambda,implied_volatility,iv_error,underlying_price,timestamp'
 
-export const CsvDataWriterLive = Layer.effect(
+export const DataWriterCsvLive = Layer.effect(
   DataWriter,
   Effect.gen(function* (_) {
     const stateRef = yield* _(

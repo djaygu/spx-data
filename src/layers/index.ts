@@ -1,6 +1,6 @@
 export * from './BulkGreeksProcessorLive'
 export * from './BulkGreeksProcessorTest'
-export * from './CsvDataWriter'
+export * from './DataWriterCsvLive'
 export * from './DataPipelineLive'
 export * from './DataWriterTest'
 export * from './JsonMetricsWriter'
