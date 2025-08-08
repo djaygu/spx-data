@@ -1,8 +1,7 @@
 import * as Command from '@effect/cli/Command'
 import * as Args from '@effect/cli/Args'
 import * as Options from '@effect/cli/Options'
-import { Effect, Schema } from 'effect'
-import { AppConfig } from '@/config/AppConfig'
+import { Effect, Stream } from 'effect'
 import { ThetaDataApiClient } from '@/services/ThetaDataApiClient'
 import { BulkGreeksProcessor } from '@/services/BulkGreeksProcessor'
 import { DataPipeline, type PipelineConfig } from '@/services/DataPipeline'
@@ -29,17 +28,29 @@ const dryRunOption = Options.boolean('dry-run').pipe(
   Options.withDefault(false)
 )
 
+const dteOption = Options.integer('dte').pipe(
+  Options.withDescription('Maximum days to expiration (0 = current day only)'),
+  Options.withDefault(0)
+)
+
+const intervalOption = Options.integer('interval').pipe(
+  Options.withDescription('Data interval in milliseconds (60000=1min, 3600000=1hr)'),
+  Options.withDefault(60000)
+)
+
 // Main download command
 export const download = Command.make(
   'download',
-  { date: dateArg, dryRun: dryRunOption },
-  ({ date, dryRun }) =>
-    Effect.gen(function* () {
+  { date: dateArg, dryRun: dryRunOption, dte: dteOption, interval: intervalOption },
+  ({ date, dryRun, dte, interval }) =>
+    Effect.gen(function* (_) {
       // Validate date format
-      const tradeDate = yield* Effect.try({
-        try: () => parseDate(date),
-        catch: (error) => new Error(`Invalid date format. Expected YYYY-MM-DD, got: ${date}`)
-      })
+      const tradeDate = yield* _(
+        Effect.try({
+          try: () => parseDate(date),
+          catch: () => new Error(`Invalid date format. Expected YYYY-MM-DD, got: ${date}`)
+        })
+      )
 
       console.log(`Starting download for trade date: ${format(tradeDate, 'yyyy-MM-dd')}`)
 
@@ -48,22 +59,23 @@ export const download = Command.make(
       }
 
       // Get services
-      const client = yield* ThetaDataApiClient
-      const processor = yield* BulkGreeksProcessor
-      const pipeline = yield* DataPipeline
-      const config = yield* AppConfig
+      const client = yield* _(ThetaDataApiClient)
+      const processor = yield* _(BulkGreeksProcessor)
+      const pipeline = yield* _(DataPipeline)
 
       // Create output directory
       const outputDir = path.join('./data', format(tradeDate, 'yyyyMMdd'))
       
       if (!dryRun) {
-        yield* Effect.tryPromise({
-          try: async () => {
-            const { $ } = await import('bun')
-            await $`mkdir -p ${outputDir}`.quiet()
-          },
-          catch: (error) => new Error(`Failed to create output directory: ${error}`)
-        })
+        yield* _(
+          Effect.tryPromise({
+            try: async () => {
+              const fs = await import('node:fs/promises')
+              await fs.mkdir(outputDir, { recursive: true })
+            },
+            catch: (error) => new Error(`Failed to create output directory: ${error}`)
+          })
+        )
       }
 
       // Get expirations for the trade date
@@ -82,6 +94,8 @@ export const download = Command.make(
       if (dryRun) {
         console.log('\nDry run summary:')
         console.log(`  Trade date: ${format(tradeDate, 'yyyy-MM-dd')}`)
+        console.log(`  DTE filter: ${dte === 0 ? 'Current day only' : `Up to ${dte} days`}`)
+        console.log(`  Data interval: ${interval === 60000 ? '1 minute' : interval === 3600000 ? '1 hour' : `${interval}ms`}`)
         console.log(`  Output directory: ${outputDir}`)
         console.log(`  Expirations to download: ${expirationCount}`)
         console.log(`  Estimated files: ${expirationCount}`)
@@ -110,11 +124,19 @@ export const download = Command.make(
       const stream = processor.streamBulkGreeks({
         root: 'SPXW',
         tradeDate: format(tradeDate, 'yyyyMMdd'),
-        expDateList: expirations.map(exp => format(exp, 'yyyyMMdd')),
-      })
+        maxDTE: dte,
+        interval: interval
+      }).pipe(
+        // Convert stream errors to defects (die on error)
+        Stream.orDie
+      )
 
-      yield* pipeline.process(stream, pipelineConfig).pipe(
-        Effect.mapError((error) => new Error(`Pipeline processing failed: ${error}`))
+      yield* _(
+        pipeline.process(stream, pipelineConfig).pipe(
+          Effect.catchAll((error) => 
+            Effect.fail(new Error(`Pipeline processing failed: ${error}`))
+          )
+        )
       )
 
       // Get final progress for summary
@@ -139,12 +161,16 @@ export const download = Command.make(
         console.log(`Throughput: ${recordsPerSec.toLocaleString()} records/sec`)
       }
     }).pipe(
-      Effect.catchTag('ThetaDataConnectionError', () =>
+      Effect.catchAll((error) =>
         Effect.gen(function* () {
-          console.log('✗ Cannot connect to ThetaData Terminal')
-          console.log('  Please ensure ThetaData Terminal is running and logged in')
-          console.log('  Expected URL: http://127.0.0.1:25510')
-          yield* Effect.fail(new Error('Terminal not running'))
+          if (error instanceof Error && error.message.includes('Terminal')) {
+            console.log('✗ Cannot connect to ThetaData Terminal')
+            console.log('  Please ensure ThetaData Terminal is running and logged in')
+            console.log('  Expected URL: http://127.0.0.1:25510')
+          } else {
+            console.log(`✗ Download failed: ${error}`)
+          }
+          yield* Effect.fail(error)
         })
       )
     )

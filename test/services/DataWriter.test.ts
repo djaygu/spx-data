@@ -33,6 +33,7 @@ describe('DataWriter', () => {
       const data = createMockData(100)
       const metadata: WriteMetadata = {
         expiration: '20240314',
+        outputDir: './test-data/20240314',
         isFirstChunk: true,
         isLastChunk: false,
         chunkIndex: 0,
@@ -62,6 +63,7 @@ describe('DataWriter', () => {
           yield* _(
             writer.writeChunk(chunk1, {
               expiration: '20240314',
+              outputDir: './test-data/20240314',
               isFirstChunk: true,
               isLastChunk: false,
               chunkIndex: 0,
@@ -73,6 +75,7 @@ describe('DataWriter', () => {
           yield* _(
             writer.writeChunk(chunk2, {
               expiration: '20240314',
+              outputDir: './test-data/20240314',
               isFirstChunk: false,
               isLastChunk: true,
               chunkIndex: 1,
@@ -97,6 +100,7 @@ describe('DataWriter', () => {
           yield* _(
             writer.writeChunk(data1, {
               expiration: '20240314',
+              outputDir: './test-data/20240314',
               isFirstChunk: true,
               isLastChunk: true,
               chunkIndex: 0,
@@ -108,6 +112,7 @@ describe('DataWriter', () => {
           yield* _(
             writer.writeChunk(data2, {
               expiration: '20240315',
+              outputDir: './test-data/20240314',
               isFirstChunk: true,
               isLastChunk: true,
               chunkIndex: 0,
@@ -132,6 +137,7 @@ describe('DataWriter', () => {
           yield* _(
             writer.writeChunk(data, {
               expiration: '20240314',
+              outputDir: './test-data/20240314',
               isFirstChunk: true,
               isLastChunk: true,
               chunkIndex: 0,
@@ -147,7 +153,7 @@ describe('DataWriter', () => {
       expect(result.totalRecordsWritten).toBe(100)
       expect(result.totalBytesWritten).toBe(10000) // 100 records * 100 bytes
       expect(result.filesCreated).toHaveLength(1)
-      expect(result.filesCreated[0]).toContain('SPXW_20240314')
+      expect(result.filesCreated[0]).toContain('spxw_exp_20240314')
     })
 
     it('should handle finalization with no data written', async () => {

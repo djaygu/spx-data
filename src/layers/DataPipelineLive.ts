@@ -120,6 +120,7 @@ export const DataPipelineLive = Layer.effect(
                       const chunk = chunks[i]
                       const metadata: WriteMetadata = {
                         expiration: result.expiration,
+                        outputDir: config.outputDir,
                         isFirstChunk: i === 0,
                         isLastChunk: i === chunks.length - 1,
                         chunkIndex: i,

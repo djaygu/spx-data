@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, beforeEach, afterEach } from 'bun:test'
 import * as path from 'node:path'
 import { Chunk, Config, Context, Effect, Fiber, Layer, Stream } from 'effect'
 import type { AppConfig } from '../../src/config/AppConfig'
@@ -58,6 +58,16 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('DataPipeline Integration Tests',
     }
   }
 
+  // Clean up before each test
+  beforeEach(async () => {
+    await cleanupTestDirs()
+  })
+
+  // Clean up after each test
+  afterEach(async () => {
+    await cleanupTestDirs()
+  })
+
   // Create AppConfig layer
   const AppConfigLive = Layer.effect(
     Context.GenericTag<AppConfig>('AppConfig'),
@@ -100,8 +110,6 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('DataPipeline Integration Tests',
   )
 
   it('should process real data end-to-end with streaming', async () => {
-    await cleanupTestDirs()
-
     const config: PipelineConfig = {
       outputDir: testOutputDir,
       chunkSize: 1000,
@@ -185,11 +193,9 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('DataPipeline Integration Tests',
       }).pipe(Effect.provide(IntegrationLayer)),
     )
 
-    await cleanupTestDirs()
   }, 60000) // 60 second timeout for integration test
 
   it('should handle partial failures gracefully', async () => {
-    await cleanupTestDirs()
 
     const config: PipelineConfig = {
       outputDir: testOutputDir,
@@ -258,11 +264,9 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('DataPipeline Integration Tests',
       }).pipe(Effect.provide(IntegrationLayer)),
     )
 
-    await cleanupTestDirs()
   }, 60000)
 
   it('should track progress accurately during processing', async () => {
-    await cleanupTestDirs()
 
     const config: PipelineConfig = {
       outputDir: testOutputDir,
@@ -328,6 +332,5 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('DataPipeline Integration Tests',
       expect(lastSnapshot.totalRecords).toBeGreaterThanOrEqual(firstSnapshot.totalRecords)
     }
 
-    await cleanupTestDirs()
   }, 60000)
 })

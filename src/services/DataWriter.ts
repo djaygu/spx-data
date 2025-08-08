@@ -14,6 +14,7 @@ export class DataWriterError extends Data.TaggedError('DataWriterError')<{
  */
 export interface WriteMetadata {
   readonly expiration: string
+  readonly outputDir: string
   readonly isFirstChunk: boolean
   readonly isLastChunk: boolean
   readonly chunkIndex: number

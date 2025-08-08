@@ -57,7 +57,8 @@ export const CsvDataWriterLive = Layer.effect(
       }),
     )
 
-    const outputDir = process.env.DATA_OUTPUT_DIR || './data/greeks'
+    // Note: outputDir now comes from metadata per write operation
+    // Removing the static outputDir - it will come from WriteMetadata
 
     const ensureDirectoryExists = (dirPath: string) =>
       Effect.tryPromise({
@@ -120,13 +121,12 @@ export const CsvDataWriterLive = Layer.effect(
             // Close previous file if exists
             yield* _(closeCurrentFile)
 
-            // Create directory for the expiration date
-            const expirationDir = path.join(outputDir, metadata.expiration.replace(/-/g, ''))
-            yield* _(ensureDirectoryExists(expirationDir))
+            // Ensure output directory exists (trade date directory)
+            yield* _(ensureDirectoryExists(metadata.outputDir))
 
-            // Setup new file paths
-            const fileName = `SPXW_${metadata.expiration.replace(/-/g, '')}.csv`
-            const finalPath = path.join(expirationDir, fileName)
+            // Setup new file paths - files go directly in trade date directory
+            const fileName = `spxw_exp_${metadata.expiration.replace(/-/g, '')}.csv`
+            const finalPath = path.join(metadata.outputDir, fileName)
             const tempPath = `${finalPath}.tmp`
 
             // Create a new writer for this file
