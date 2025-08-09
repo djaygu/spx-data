@@ -4,15 +4,22 @@ import * as Command from '@effect/cli/Command'
 import * as Options from '@effect/cli/Options'
 import { format, isValid, parse } from 'date-fns'
 import { Effect, Stream } from 'effect'
+import { AppConfig } from '@/config/AppConfig'
 import { BulkGreeksProcessor } from '@/services/BulkGreeksProcessor'
 import { DataPipeline, type PipelineConfig } from '@/services/DataPipeline'
 import { ThetaDataApiClient } from '@/services/ThetaDataApiClient'
 
-// Date validation function
+// Date validation function - strict YYYY-MM-DD format only
 const parseDate = (input: string): Date => {
+  // First check the format with regex
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+  if (!dateRegex.test(input)) {
+    throw new Error(`Invalid date format. Must be YYYY-MM-DD, got: ${input}`)
+  }
+  
   const date = parse(input, 'yyyy-MM-dd', new Date())
   if (!isValid(date)) {
-    throw new Error(`Invalid date format: ${input}`)
+    throw new Error(`Invalid date. Please provide a valid date in YYYY-MM-DD format, got: ${input}`)
   }
   return date
 }
@@ -56,13 +63,14 @@ export const download = Command.make(
         console.log('DRY RUN MODE - No data will be downloaded')
       }
 
-      // Get services
+      // Get services and config
+      const config = yield* _(AppConfig)
       const client = yield* _(ThetaDataApiClient)
       const processor = yield* _(BulkGreeksProcessor)
       const pipeline = yield* _(DataPipeline)
 
-      // Create output directory
-      const outputDir = path.join('./data', format(tradeDate, 'yyyyMMdd'))
+      // Create output directory using configured data directory
+      const outputDir = path.join(config.storage.dataDirectory, format(tradeDate, 'yyyyMMdd'))
 
       if (!dryRun) {
         yield* _(

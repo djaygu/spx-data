@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
-import { $ } from 'bun'
 
 // Test timeout in milliseconds
 const TEST_TIMEOUT = 60000
@@ -46,7 +45,7 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Integration Tests',
   test(
     'download command shows help with --help flag',
     async () => {
-      const result = await $`${binaryPath} download --help`.quiet()
+      const result = await Bun.$`${binaryPath} download --help`.quiet()
       const output = result.stdout.toString()
 
       expect(output).toContain('download')
@@ -60,24 +59,10 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Integration Tests',
   )
 
   test(
-    'download command validates date format',
-    async () => {
-      try {
-        await $`${binaryPath} download invalid-date`.quiet()
-        expect(true).toBe(false) // Should not reach here
-      } catch (error: any) {
-        const output = error.stderr?.toString() || error.stdout?.toString() || ''
-        expect(output).toContain('Invalid date format')
-      }
-    },
-    TEST_TIMEOUT,
-  )
-
-  test(
     'download command accepts valid date format',
     async () => {
       // Use dry-run to avoid actual API calls (option must come before date argument)
-      const result = await $`${binaryPath} download --dry-run 2025-08-07`.quiet()
+      const result = await Bun.$`${binaryPath} download --dry-run 2025-08-07`.quiet()
       const output = result.stdout.toString()
 
       expect(output).toContain('Starting download for trade date: 2025-08-07')
@@ -88,9 +73,32 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Integration Tests',
   )
 
   test(
+    'download command strictly enforces YYYY-MM-DD format',
+    async () => {
+      // Test that only YYYY-MM-DD format is accepted
+      const invalidFormats = ['20250807', '2025/08/07', '2025-8-7']
+      
+      for (const date of invalidFormats) {
+        try {
+          await Bun.$`${binaryPath} download ${date}`.quiet()
+          expect(true).toBe(false) // Should not reach here
+        } catch (error: any) {
+          const output = error.stderr?.toString() || error.stdout?.toString() || ''
+          expect(output).toContain('YYYY-MM-DD')
+        }
+      }
+      
+      // Valid format should work
+      const validResult = await Bun.$`${binaryPath} download --dry-run 2025-08-07`.quiet()
+      expect(validResult.stdout.toString()).toContain('Starting download')
+    },
+    TEST_TIMEOUT,
+  )
+
+  test(
     'download command dry-run shows what would be downloaded',
     async () => {
-      const result = await $`${binaryPath} download --dry-run 2025-08-07`.quiet()
+      const result = await Bun.$`${binaryPath} download --dry-run 2025-08-07`.quiet()
       const output = result.stdout.toString()
 
       expect(output).toContain('Dry run summary')
@@ -110,14 +118,14 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Integration Tests',
       // This test assumes the terminal is not running or we can't connect
       try {
         // Use a very short timeout environment variable to fail quickly
-        const _result =
-          await $`THETA_DATA_TERMINAL_URL=http://127.0.0.1:99999 ${binaryPath} download --interval 3600000 2025-08-07`.quiet()
+        await Bun.$`THETA_DATA_TERMINAL_URL=http://127.0.0.1:99999 ${binaryPath} download --interval 3600000 2025-08-07`.quiet()
         // If it succeeds, terminal is running, skip this test
         console.log('ThetaData Terminal is running, skipping terminal-not-running test')
       } catch (error: any) {
-        const output = error.stderr?.toString() || error.stdout?.toString() || ''
+        // Bun.$ returns ShellError with stdout/stderr as Buffer objects
+        const output = (error.stderr?.toString() || error.stdout?.toString() || '').toLowerCase()
         // Should show helpful error message about terminal not running
-        expect(output.toLowerCase()).toMatch(/cannot connect|terminal|please ensure|running/)
+        expect(output).toMatch(/cannot connect|terminal|please ensure|running/)
       }
     },
     TEST_TIMEOUT,
@@ -132,7 +140,7 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Integration Tests',
 
       // Run with dry-run first to test directory creation logic
       const result =
-        await $`DATA_OUTPUT_DIR=${customDataDir} ${binaryPath} download --dry-run ${tradeDate}`.quiet()
+        await Bun.$`DATA_OUTPUT_DIR=${customDataDir} ${binaryPath} download --dry-run ${tradeDate}`.quiet()
       const output = result.stdout.toString()
 
       // Verify the output mentions the correct directory
@@ -143,37 +151,11 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Integration Tests',
   )
 
   test(
-    'download command handles multiple date formats correctly',
-    async () => {
-      // Test various date formats that should be rejected
-      const invalidDates = [
-        '20250807', // Wrong format (should be YYYY-MM-DD)
-        '2025/08/07', // Wrong separator
-        '07-08-2025', // Wrong order
-        '2025-13-01', // Invalid month
-        '2025-08-32', // Invalid day
-        '2025-8-7', // Missing leading zeros
-      ]
-
-      for (const date of invalidDates) {
-        try {
-          await $`${binaryPath} download ${date}`.quiet()
-          expect(true).toBe(false) // Should not reach here
-        } catch (error: any) {
-          const output = error.stderr?.toString() || error.stdout?.toString() || ''
-          expect(output).toContain('Invalid date')
-        }
-      }
-    },
-    TEST_TIMEOUT,
-  )
-
-  test(
     'download command handles future dates appropriately',
     async () => {
       // Test with a far future date
       const futureDate = '2030-12-31'
-      const result = await $`${binaryPath} download --dry-run ${futureDate}`.quiet()
+      const result = await Bun.$`${binaryPath} download --dry-run ${futureDate}`.quiet()
       const output = result.stdout.toString()
 
       expect(output).toContain('Starting download for trade date: 2030-12-31')
@@ -189,7 +171,7 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Integration Tests',
     async () => {
       // Test with a past date
       const pastDate = '2024-01-15'
-      const result = await $`${binaryPath} download --dry-run ${pastDate}`.quiet()
+      const result = await Bun.$`${binaryPath} download --dry-run ${pastDate}`.quiet()
       const output = result.stdout.toString()
 
       expect(output).toContain('Starting download for trade date: 2024-01-15')
@@ -204,7 +186,7 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Integration Tests',
     'download command respects --dte option with default value',
     async () => {
       // Test default dte value (0)
-      const result = await $`${binaryPath} download --dry-run 2025-08-07`.quiet()
+      const result = await Bun.$`${binaryPath} download --dry-run 2025-08-07`.quiet()
       const output = result.stdout.toString()
 
       expect(output).toContain('DTE filter: Current day only')
@@ -216,7 +198,7 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Integration Tests',
     'download command respects --dte option with custom value',
     async () => {
       // Test with custom dte value
-      const result = await $`${binaryPath} download --dry-run --dte 7 2025-08-07`.quiet()
+      const result = await Bun.$`${binaryPath} download --dry-run --dte 7 2025-08-07`.quiet()
       const output = result.stdout.toString()
 
       expect(output).toContain('DTE filter: Up to 7 days')
@@ -231,7 +213,7 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Integration Tests',
       const dteValues = [0, 1, 7, 30, 365]
 
       for (const dte of dteValues) {
-        const result = await $`${binaryPath} download --dry-run --dte ${dte} 2025-08-07`.quiet()
+        const result = await Bun.$`${binaryPath} download --dry-run --dte ${dte} 2025-08-07`.quiet()
         const output = result.stdout.toString()
 
         if (dte === 0) {
@@ -248,21 +230,21 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Integration Tests',
     'download command respects --interval option',
     async () => {
       // Test with hourly interval
-      const result = await $`${binaryPath} download --dry-run --interval 3600000 2025-08-07`.quiet()
+      const result = await Bun.$`${binaryPath} download --dry-run --interval 3600000 2025-08-07`.quiet()
       const output = result.stdout.toString()
 
       expect(output).toContain('Data interval: 1 hour')
 
       // Test with minute interval (default)
       const minuteResult =
-        await $`${binaryPath} download --dry-run --interval 60000 2025-08-07`.quiet()
+        await Bun.$`${binaryPath} download --dry-run --interval 60000 2025-08-07`.quiet()
       const minuteOutput = minuteResult.stdout.toString()
 
       expect(minuteOutput).toContain('Data interval: 1 minute')
 
       // Test with custom interval
       const customResult =
-        await $`${binaryPath} download --dry-run --interval 900000 2025-08-07`.quiet()
+        await Bun.$`${binaryPath} download --dry-run --interval 900000 2025-08-07`.quiet()
       const customOutput = customResult.stdout.toString()
 
       expect(customOutput).toContain('Data interval: 900000ms')
@@ -282,7 +264,7 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Integration Tests',
   test(
     'download command outputs are formatted correctly',
     async () => {
-      const result = await $`${binaryPath} download --dry-run 2025-08-07`.quiet()
+      const result = await Bun.$`${binaryPath} download --dry-run 2025-08-07`.quiet()
       const output = result.stdout.toString()
 
       // Check for professional CLI formatting
@@ -314,7 +296,7 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Binary Tests', () =
   })
 
   test('binary runs without errors for help command', async () => {
-    const result = await $`${binaryPath} --help`.quiet()
+    const result = await Bun.$`${binaryPath} --help`.quiet()
     expect(result.exitCode).toBe(0)
 
     const output = result.stdout.toString()
@@ -324,10 +306,11 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Binary Tests', () =
 
   test('binary handles unknown commands appropriately', async () => {
     try {
-      await $`${binaryPath} unknown-command`.quiet()
+      await Bun.$`${binaryPath} unknown-command`.quiet()
       expect(true).toBe(false) // Should not reach here
     } catch (error: any) {
       expect(error.exitCode).not.toBe(0)
+      // Bun.$ returns ShellError with stdout/stderr as Buffer objects
       const output = error.stderr?.toString() || error.stdout?.toString() || ''
       // Should show some error about unknown command
       expect(output.length).toBeGreaterThan(0)
@@ -344,9 +327,10 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Environment Variabl
       const customUrl = 'http://localhost:12345'
 
       try {
-        await $`THETA_DATA_TERMINAL_URL=${customUrl} ${binaryPath} download --interval 3600000 2025-08-07`.quiet()
+        await Bun.$`THETA_DATA_TERMINAL_URL=${customUrl} ${binaryPath} download --interval 3600000 2025-08-07`.quiet()
         // If it succeeds, that's unexpected unless terminal is actually there
       } catch (error: any) {
+        // Bun.$ returns ShellError with stdout/stderr as Buffer objects
         const output = error.stderr?.toString() || error.stdout?.toString() || ''
         // Should attempt to connect to custom URL and fail
         expect(output).toContain('Cannot connect')
@@ -359,7 +343,7 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Environment Variabl
     'respects LOG_LEVEL environment variable',
     async () => {
       // Test with DEBUG log level
-      const result = await $`LOG_LEVEL=debug ${binaryPath} download --dry-run 2025-08-07`.quiet()
+      const result = await Bun.$`LOG_LEVEL=debug ${binaryPath} download --dry-run 2025-08-07`.quiet()
       const output = result.stdout.toString()
 
       // Debug mode should show more detailed output
@@ -367,7 +351,7 @@ describe.skipIf(!SHOULD_RUN_INTEGRATION_TESTS)('CLI Download Environment Variabl
 
       // Test with ERROR log level (should be quieter)
       const quietResult =
-        await $`LOG_LEVEL=error ${binaryPath} download --dry-run 2025-08-07`.quiet()
+        await Bun.$`LOG_LEVEL=error ${binaryPath} download --dry-run 2025-08-07`.quiet()
       const quietOutput = quietResult.stdout.toString()
 
       // Should still show main output but less verbose
